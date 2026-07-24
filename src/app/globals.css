@@ -1,0 +1,336 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+   Light theme: clean whites and very light greys, hairline borders.
+   Dark theme:  near-black glass surfaces with restrained neon-green accents.
+   All colours are `R G B` triplets so Tailwind can apply opacity modifiers.
+--------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --brand-50: 236 253 240;
+    --brand-100: 209 250 219;
+    --brand-200: 167 243 187;
+    --brand-300: 108 231 143;
+    --brand-400: 61 219 105;
+    --brand-500: 34 224 74;
+    --brand-600: 22 176 60;
+    --brand-700: 20 137 50;
+    --brand-800: 21 107 43;
+    --brand-900: 20 88 38;
+
+    --surface: 255 255 255;
+    --surface-2: 246 247 249;
+    --ink: 15 18 22;
+    --ink-soft: 71 78 88;
+    --ink-muted: 122 130 142;
+    --hairline: 226 229 234;
+
+    --glass: 255 255 255;
+    --glass-alpha: 0.72;
+    --glow: 34 224 74;
+
+    --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-display: var(--font-sans);
+
+    --header-h: 60px;
+    color-scheme: light;
+  }
+
+  .dark {
+    --surface: 10 11 13;
+    --surface-2: 18 20 24;
+    --ink: 244 246 248;
+    --ink-soft: 176 182 192;
+    --ink-muted: 128 136 148;
+    --hairline: 39 43 50;
+
+    --glass: 22 25 30;
+    --glass-alpha: 0.62;
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: rgb(var(--hairline));
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-surface font-sans text-ink antialiased;
+    /* Ambient gradient wash — very subtle, never fights the content. */
+    background-image:
+      radial-gradient(120% 90% at 12% -10%, rgb(var(--brand-500) / 0.09), transparent 60%),
+      radial-gradient(90% 70% at 100% 0%, rgb(var(--brand-300) / 0.07), transparent 55%);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  /* Theme transitions: animate colours only, never layout. */
+  body,
+  body * {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 220ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Elements that animate themselves opt out of the global colour transition. */
+  .no-theme-transition,
+  .no-theme-transition * {
+    transition-property: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  ::selection {
+    background: rgb(var(--brand-500) / 0.28);
+  }
+
+  /* Slim, unobtrusive scrollbars (Apple-ish). */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--ink-muted) / 0.32);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--ink-muted) / 0.5);
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--brand-500));
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reusable component classes
+--------------------------------------------------------------------------- */
+@layer components {
+  /* Frosted panel — the core surface of the UI. */
+  .glass {
+    background-color: rgb(var(--glass) / var(--glass-alpha));
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid rgb(var(--hairline) / 0.9);
+  }
+
+  .glass-strong {
+    background-color: rgb(var(--glass) / 0.86);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgb(var(--hairline));
+  }
+
+  .card {
+    @apply glass rounded-3xl shadow-soft;
+  }
+
+  .card-hover {
+    @apply transition-transform duration-300 ease-out will-change-transform hover:-translate-y-1 hover:shadow-lifted;
+  }
+
+  /* Buttons ---------------------------------------------------------------- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-full px-5 py-2.5
+      text-sm font-medium transition-all duration-200 active:scale-[0.97]
+      disabled:pointer-events-none disabled:opacity-45;
+  }
+
+  .btn-primary {
+    @apply btn text-black;
+    background-image: linear-gradient(
+      135deg,
+      rgb(var(--brand-400)),
+      rgb(var(--brand-500)) 55%,
+      rgb(var(--brand-600))
+    );
+    box-shadow: 0 6px 24px -8px rgb(var(--glow) / 0.6);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 10px 32px -8px rgb(var(--glow) / 0.75);
+    filter: brightness(1.04);
+  }
+
+  .btn-secondary {
+    @apply btn glass text-ink hover:bg-surface-2;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-soft hover:bg-ink/5 hover:text-ink dark:hover:bg-white/5;
+  }
+
+  .btn-sm {
+    @apply px-3.5 py-1.5 text-xs;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-soft
+      transition-colors hover:bg-ink/5 hover:text-ink dark:hover:bg-white/10;
+  }
+
+  /* Inputs ----------------------------------------------------------------- */
+  .input {
+    @apply w-full rounded-2xl border border-hairline bg-surface-2/70 px-4 py-2.5 text-sm
+      text-ink placeholder:text-ink-muted focus:border-brand-500/60 focus:outline-none
+      focus:ring-4 focus:ring-brand-500/[0.12];
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-hairline bg-surface-2/60
+      px-3 py-1.5 text-xs font-medium text-ink-soft transition-all hover:border-brand-500/50
+      hover:text-ink;
+  }
+
+  .chip-active {
+    @apply border-brand-500/60 bg-brand-500/[0.12] text-ink;
+    box-shadow: 0 0 0 1px rgb(var(--brand-500) / 0.25) inset;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full bg-ink/[0.06] px-2.5 py-1 text-[11px]
+      font-medium text-ink-soft dark:bg-white/[0.08];
+  }
+
+  /* Section title with the restrained neon underline. */
+  .section-title {
+    @apply font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl;
+  }
+
+  .muted {
+    @apply text-sm leading-relaxed text-ink-soft;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-2xl bg-ink/[0.06] dark:bg-white/[0.06];
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--ink) / 0.06),
+      transparent
+    );
+  }
+
+  .hairline {
+    @apply border-hairline;
+  }
+
+  /* Text link with animated underline. */
+  .link {
+    @apply relative text-ink-soft transition-colors hover:text-ink;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-br from-brand-300 via-brand-500 to-brand-700 bg-clip-text text-transparent;
+  }
+
+  /* Discreet neon glow used on hero words and key numbers. */
+  .neon {
+    text-shadow: 0 0 18px rgb(var(--glow) / 0.35);
+  }
+
+  .ring-neon {
+    box-shadow:
+      0 0 0 1px rgb(var(--brand-500) / 0.35),
+      0 8px 40px -12px rgb(var(--glow) / 0.55);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .container-page {
+    @apply mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* Keyframes used by the logo + splash screen. */
+@keyframes logo-stroke-in {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .glass,
+  .card {
+    background: #fff !important;
+    backdrop-filter: none !important;
+    border-color: #ddd !important;
+    box-shadow: none !important;
+  }
+}
