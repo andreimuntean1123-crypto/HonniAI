@@ -31,6 +31,11 @@ type AuthValue = {
   ready: boolean;
   googleEnabled: boolean;
   signInWithGoogle: () => Promise<{ ok: boolean; fallback?: boolean; error?: string }>;
+  /** Renders Google's official sign-in button into the given element. */
+  mountGoogleButton: (
+    container: HTMLElement,
+    options?: { theme?: 'light' | 'dark'; locale?: string },
+  ) => Promise<boolean>;
   signInWithPassword: (c: Credentials) => Promise<{ ok: boolean; error?: string }>;
   signUpWithPassword: (c: Credentials) => Promise<{ ok: boolean; error?: string }>;
   signInDemo: () => void;
@@ -63,15 +68,43 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-function loadGoogleScript(): Promise<void> {
+/**
+ * Loads Google Identity Services.
+ *
+ * The timeout matters: ad blockers, offline devices and networks that cannot
+ * reach accounts.google.com leave the request hanging forever, and without a
+ * deadline the sign-in area would stay empty with no explanation.
+ */
+function loadGoogleScript(timeoutMs = 8000): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.getElementById('google-identity')) return resolve();
+    const ready = () =>
+      Boolean((window as unknown as { google?: { accounts?: { id?: unknown } } }).google?.accounts?.id);
+    if (ready()) return resolve();
+
+    const deadline = window.setTimeout(() => reject(new Error('timeout')), timeoutMs);
+    const done = (ok: boolean) => {
+      window.clearTimeout(deadline);
+      // `onload` can fire a tick before `window.google` is populated.
+      if (ok && !ready()) {
+        window.setTimeout(() => (ready() ? resolve() : reject(new Error('unavailable'))), 300);
+        return;
+      }
+      ok ? resolve() : reject(new Error('script'));
+    };
+
+    const existing = document.getElementById('google-identity') as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => done(true), { once: true });
+      existing.addEventListener('error', () => done(false), { once: true });
+      return;
+    }
+
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client';
     s.id = 'google-identity';
     s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('script'));
+    s.onload = () => done(true);
+    s.onerror = () => done(false);
     document.head.appendChild(s);
   });
 }
@@ -101,7 +134,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [persist]);
 
+  /** Turns a Google ID token into a signed-in user. */
+  const acceptGoogleCredential = useCallback(
+    (credential: string) => {
+      const payload = decodeJwtPayload(credential);
+      if (!payload?.email) return false;
+      persist({
+        id: String(payload.sub ?? uid('google')),
+        name: String(payload.name ?? payload.email),
+        email: String(payload.email),
+        picture: payload.picture ? String(payload.picture) : undefined,
+        provider: 'google',
+        createdAt: Date.now(),
+      });
+      return true;
+    },
+    [persist],
+  );
+
+  /**
+   * Renders Google's own sign-in button into `container`.
+   *
+   * This is the reliable path: One Tap (`prompt()`) is silently suppressed by
+   * browsers that block third-party cookies, or after the user dismisses it
+   * once, which makes it useless as the only entry point. The rendered button
+   * always opens the account chooser in a popup.
+   */
+  const mountGoogleButton = useCallback(
+    async (
+      container: HTMLElement,
+      options: { theme?: 'light' | 'dark'; locale?: string } = {},
+    ): Promise<boolean> => {
+      if (!GOOGLE_CLIENT_ID) return false;
+      try {
+        await loadGoogleScript();
+        const google = (window as unknown as { google?: any }).google;
+        if (!google?.accounts?.id) return false;
+
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          ux_mode: 'popup',
+          auto_select: false,
+          callback: (res: { credential?: string }) => {
+            if (res.credential) acceptGoogleCredential(res.credential);
+          },
+        });
+
+        container.innerHTML = '';
+        google.accounts.id.renderButton(container, {
+          type: 'standard',
+          theme: options.theme === 'dark' ? 'filled_black' : 'outline',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          logo_alignment: 'center',
+          width: Math.min(360, Math.max(220, container.clientWidth || 320)),
+          locale: options.locale ?? 'ro',
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [acceptGoogleCredential],
+  );
+
   const signInWithGoogle = useCallback(async () => {
+    // Without a client ID configured there is nothing to sign in to, so the
+    // demo account keeps the app usable — the caller tells the user.
     if (!GOOGLE_CLIENT_ID) {
       signInDemo();
       return { ok: true, fallback: true };
@@ -114,6 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const credential = await new Promise<string>((resolve, reject) => {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
+          ux_mode: 'popup',
+          auto_select: false,
           callback: (res: { credential?: string }) =>
             res.credential ? resolve(res.credential) : reject(new Error('no-credential')),
         });
@@ -124,22 +226,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       });
 
-      const payload = decodeJwtPayload(credential);
-      if (!payload?.email) throw new Error('payload');
-
-      persist({
-        id: String(payload.sub ?? uid('google')),
-        name: String(payload.name ?? payload.email),
-        email: String(payload.email),
-        picture: payload.picture ? String(payload.picture) : undefined,
-        provider: 'google',
-        createdAt: Date.now(),
-      });
+      if (!acceptGoogleCredential(credential)) throw new Error('payload');
       return { ok: true };
     } catch {
       return { ok: false, error: 'google' };
     }
-  }, [persist, signInDemo]);
+  }, [acceptGoogleCredential, signInDemo]);
 
   const signUpWithPassword = useCallback(
     async ({ email, password, name }: Credentials) => {
@@ -205,6 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ready,
       googleEnabled: Boolean(GOOGLE_CLIENT_ID),
       signInWithGoogle,
+      mountGoogleButton,
       signInWithPassword,
       signUpWithPassword,
       signInDemo,
@@ -215,6 +308,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       ready,
       signInWithGoogle,
+      mountGoogleButton,
       signInWithPassword,
       signUpWithPassword,
       signInDemo,

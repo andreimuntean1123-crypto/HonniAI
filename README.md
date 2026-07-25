@@ -67,14 +67,29 @@ OPENAI_MODEL=gpt-4o-mini
 
 1. În [Google Cloud Console](https://console.cloud.google.com/apis/credentials) creează un
    **OAuth 2.0 Client ID** de tip *Web application*.
-2. Adaugă originea ta (`http://localhost:3000`) la *Authorized JavaScript origins*.
-3. Pune ID-ul în `.env.local`:
+2. La *Authorized JavaScript origins* adaugă **fiecare** domeniu de pe care se face login,
+   fără cale și fără slash final:
+   - `http://localhost:3000`
+   - domeniul de producție, ex. `https://honni-ai.vercel.app`
+3. Pune ID-ul în `.env.local` (local) și în **Vercel → Settings → Environment Variables**:
 
 ```bash
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 ```
 
-Fără această variabilă, butonul „Continuă cu Google” intră automat în contul demonstrativ.
+> Variabilele `NEXT_PUBLIC_*` sunt încorporate la build, deci după ce o adaugi în Vercel
+> trebuie să faci **Redeploy** — altfel modificarea nu are efect.
+
+Comportament:
+
+- **variabilă setată** → se afișează butonul oficial Google, care deschide fereastra de
+  selectare a contului (nu One Tap, care este blocat frecvent de browsere);
+- **script Google blocat** (ad-blocker, fără internet) → apare un buton de rezervă și un
+  mesaj explicit, în locul unui spațiu gol;
+- **variabilă lipsă** → butonul te conectează în contul demonstrativ, cu mesaj clar.
+
+Fiecare deployment preview de pe Vercel are propriul subdomeniu; login-ul Google va
+funcționa doar pe domeniile trecute explicit la pasul 2.
 
 ---
 

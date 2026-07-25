@@ -1,18 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, Mail, Sparkles } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useTheme } from '@/components/providers/ThemeProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { Modal } from '@/components/ui/Modal';
 import { LogoMark } from '@/components/brand/Logo';
 
 /** Google + email/password + demo account, in one sheet. */
 export function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useI18n();
-  const { signInWithGoogle, signInWithPassword, signUpWithPassword, signInDemo } = useAuth();
+  const { t, locale } = useI18n();
+  const {
+    signInWithGoogle,
+    signInWithPassword,
+    signUpWithPassword,
+    signInDemo,
+    googleEnabled,
+    mountGoogleButton,
+    user,
+  } = useAuth();
+  const { resolved } = useTheme();
   const { toast } = useToast();
+  const googleSlot = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
@@ -20,6 +32,29 @@ export function AuthModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Whether Google's own button could be rendered (script may be blocked). */
+  const [googleButton, setGoogleButton] = useState<'pending' | 'ok' | 'failed'>('pending');
+
+  useEffect(() => {
+    if (!open || !googleEnabled || !googleSlot.current) return;
+    let cancelled = false;
+    setGoogleButton('pending');
+    void mountGoogleButton(googleSlot.current, { theme: resolved, locale }).then((ok) => {
+      if (!cancelled) setGoogleButton(ok ? 'ok' : 'failed');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, googleEnabled, mountGoogleButton, resolved, locale]);
+
+  // Google's own button signs the user in through its callback, so the sheet
+  // closes by reacting to the user appearing rather than to a click handler.
+  useEffect(() => {
+    if (open && user?.provider === 'google') {
+      toast(t('auth.welcomeBack', { name: user.name }));
+      onClose();
+    }
+  }, [open, user, onClose, t, toast]);
 
   const finish = (userName: string) => {
     toast(t('auth.welcomeBack', { name: userName }));
@@ -79,14 +114,35 @@ export function AuthModal({ open, onClose }: { open: boolean; onClose: () => voi
         <p className="muted mt-1 text-xs">{t('auth.signInSubtitle')}</p>
       </div>
 
-      <button
-        onClick={handleGoogle}
-        disabled={busy}
-        className="btn-secondary mt-5 w-full justify-center py-3"
-      >
-        <GoogleIcon />
-        {t('auth.google')}
-      </button>
+      {/* Google renders its own button here — the popup flow it opens works even
+          in browsers that suppress One Tap. */}
+      <div
+        ref={googleSlot}
+        className={clsx('mt-5 flex justify-center', (!googleEnabled || googleButton !== 'ok') && 'hidden')}
+      />
+
+      {googleEnabled && googleButton === 'pending' && (
+        <div className="mt-5 flex justify-center py-3 text-ink-muted">
+          <Loader2 size={18} className="animate-spin" />
+        </div>
+      )}
+
+      {/* Fallback: no client ID, or Google's script could not load. */}
+      {(!googleEnabled || googleButton === 'failed') && (
+        <>
+          <button
+            onClick={handleGoogle}
+            disabled={busy}
+            className="btn-secondary mt-5 w-full justify-center py-3"
+          >
+            <GoogleIcon />
+            {t('auth.google')}
+          </button>
+          <p className="mt-2 text-center text-[11px] leading-relaxed text-amber-600 dark:text-amber-300">
+            {googleEnabled ? t('auth.googleUnavailable') : t('auth.googleNotConfiguredHint')}
+          </p>
+        </>
+      )}
 
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-hairline" />

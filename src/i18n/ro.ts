@@ -473,6 +473,10 @@ export const ro = {
     invalidEmail: 'Adresă de email invalidă.',
     googleNotConfigured:
       'Google Sign-In nu este configurat. Am folosit contul demonstrativ.',
+    googleNotConfiguredHint:
+      'Google Sign-In nu este activ pe acest domeniu. Butonul te conectează în contul demonstrativ.',
+    googleUnavailable:
+      'Butonul Google nu s-a putut încărca (conexiune slabă sau blocare în browser). Încearcă din nou sau folosește emailul.',
     guestNotice: 'Ești în modul invitat — datele se salvează doar pe acest dispozitiv.',
   },
   onboarding: {

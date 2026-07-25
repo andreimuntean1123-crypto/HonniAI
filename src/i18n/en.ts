@@ -467,6 +467,10 @@ export const en: Dict = {
     weakPassword: 'The password must be at least 6 characters.',
     invalidEmail: 'Invalid email address.',
     googleNotConfigured: 'Google Sign-In is not configured. Used the demo account instead.',
+    googleNotConfiguredHint:
+      'Google Sign-In is not active on this domain. The button signs you into the demo account.',
+    googleUnavailable:
+      'The Google button could not load (poor connection or a browser blocker). Try again or use email.',
     guestNotice: 'You are in guest mode — data is stored on this device only.',
   },
   onboarding: {
