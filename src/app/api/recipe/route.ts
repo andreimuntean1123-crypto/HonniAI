@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { complete, aiConfigured, extractJson } from '@/lib/server/aiProvider';
+import {
+  complete,
+  canCallProvider,
+  extractJson,
+  userKeyFrom,
+} from '@/lib/server/aiProvider';
 import { clientIp, rateLimit } from '@/lib/server/rateLimit';
 import type {
   AllergenId,
@@ -202,7 +207,8 @@ export async function POST(req: Request) {
   const servings = num(b.servings, 1, 20, 0);
 
   if (!query) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
-  if (!aiConfigured) return NextResponse.json({ recipe: null, demo: true });
+  const userKey = userKeyFrom(req);
+  if (!canCallProvider(userKey)) return NextResponse.json({ recipe: null, demo: true });
 
   try {
     const ask = [
@@ -215,6 +221,7 @@ export async function POST(req: Request) {
 
     const result = await complete(SYSTEM(locale), [{ role: 'user', content: ask }], {
       maxTokens: 2200,
+      userKey,
     });
     const parsed = result ? extractJson<Record<string, unknown>>(result.text) : null;
     if (!parsed) throw new Error('unparseable_model_output');

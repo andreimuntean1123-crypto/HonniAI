@@ -27,6 +27,7 @@ import type {
   Sex,
 } from '@/lib/types';
 import { useI18n } from '@/components/providers/I18nProvider';
+import { apiKeyHeader } from '@/lib/apiKey';
 import { useData } from '@/components/providers/DataProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -95,7 +96,7 @@ export default function PlannerPage() {
     try {
       const res = await fetch('/api/plan', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...apiKeyHeader() },
         body: JSON.stringify({ input, locale, userContext: data.profile.aiContext }),
         // Building a week of meals is a long generation; give it room, but never
         // leave the user watching a skeleton forever.

@@ -550,6 +550,23 @@ export const ro = {
     reducedMotion: 'Animații reduse',
     reducedMotionHint: 'Respectă setarea sistemului tău.',
   },
+  apiKey: {
+    title: 'Cheia ta API',
+    description:
+      'Adaugă o cheie ca răspunsurile să fie generate real, nu demonstrativ. Cheia rămâne în acest browser și este folosită doar pentru cererile tale.',
+    label: 'Cheie API',
+    replace: 'Înlocuiește cheia',
+    active: 'Cheie activă',
+    remove: 'Șterge cheia',
+    invalid: 'Cheie invalidă. Trebuie să înceapă cu „sk-ant-” (Anthropic) sau „sk-” (OpenAI).',
+    saved: 'Cheia a fost salvată pe acest dispozitiv.',
+    removed: 'Cheia a fost ștearsă.',
+    privacy:
+      'Cheia se salvează doar în acest browser, nu în contul tău și nu pe server. Se trimite la fiecare cerere doar ca să apeleze furnizorul, apoi este uitată. O poți șterge oricând.',
+    getKey: 'De unde iau o cheie?',
+    addButton: 'Adaugă cheia API',
+    demoBanner: 'Răspunsuri demonstrative — adaugă cheia ta pentru răspunsuri reale.',
+  },
   toast: {
     addedFavorite: 'Adăugat la favorite',
     removedFavorite: 'Eliminat din favorite',

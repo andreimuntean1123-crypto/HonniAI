@@ -27,6 +27,27 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
 
 export const aiConfigured = Boolean(ANTHROPIC_KEY || OPENAI_KEY);
 
+/**
+ * A key supplied by the user from the browser ("bring your own key").
+ * It is used for this request only: never stored, never logged.
+ */
+export type UserKey = { key: string; provider: 'anthropic' | 'openai' } | null;
+
+export function parseUserKey(raw: string | null | undefined): UserKey {
+  const value = raw?.trim();
+  if (!value || value.length > 200) return null;
+  if (/^sk-ant-[A-Za-z0-9\-_]{20,}$/.test(value)) return { key: value, provider: 'anthropic' };
+  if (/^sk-[A-Za-z0-9\-_]{20,}$/.test(value)) return { key: value, provider: 'openai' };
+  return null;
+}
+
+/** Reads the personal key from the request headers. */
+export const userKeyFrom = (req: Request): UserKey =>
+  parseUserKey(req.headers.get('x-honni-api-key'));
+
+/** True when this request can reach a provider — env key or the user's own. */
+export const canCallProvider = (userKey: UserKey) => aiConfigured || Boolean(userKey);
+
 export class AiError extends Error {
   constructor(
     message: string,
@@ -48,6 +69,7 @@ async function callAnthropic(
   messages: AiMessage[],
   maxTokens: number,
   hasImage: boolean,
+  apiKey: string,
 ): Promise<string> {
   const body = {
     model: hasImage ? ANTHROPIC_VISION_MODEL : ANTHROPIC_MODEL,
@@ -75,7 +97,7 @@ async function callAnthropic(
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY as string,
+      'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify(body),
@@ -100,12 +122,13 @@ async function callOpenAi(
   system: string,
   messages: AiMessage[],
   maxTokens: number,
+  apiKey: string,
 ): Promise<string> {
   const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: `Bearer ${OPENAI_KEY}`,
+      authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
@@ -145,16 +168,30 @@ async function callOpenAi(
 export async function complete(
   system: string,
   messages: AiMessage[],
-  options: { maxTokens?: number } = {},
+  options: { maxTokens?: number; userKey?: UserKey } = {},
 ): Promise<AiResult | null> {
-  if (!aiConfigured) return null;
   const maxTokens = options.maxTokens ?? 1400;
   const hasImage = messages.some((m) => Boolean(m.image));
 
-  if (ANTHROPIC_KEY) {
-    return { text: await callAnthropic(system, messages, maxTokens, hasImage), demo: false };
+  // A key sent by the user takes precedence, so someone can use the app with
+  // their own account even when the deployment has none configured.
+  const userKey = options.userKey ?? null;
+  if (userKey) {
+    return userKey.provider === 'anthropic'
+      ? { text: await callAnthropic(system, messages, maxTokens, hasImage, userKey.key), demo: false }
+      : { text: await callOpenAi(system, messages, maxTokens, userKey.key), demo: false };
   }
-  return { text: await callOpenAi(system, messages, maxTokens), demo: false };
+
+  if (ANTHROPIC_KEY) {
+    return {
+      text: await callAnthropic(system, messages, maxTokens, hasImage, ANTHROPIC_KEY),
+      demo: false,
+    };
+  }
+  if (OPENAI_KEY) {
+    return { text: await callOpenAi(system, messages, maxTokens, OPENAI_KEY), demo: false };
+  }
+  return null;
 }
 
 /** Extracts the first JSON object from a model answer (handles ```json fences). */

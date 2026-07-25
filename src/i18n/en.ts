@@ -545,6 +545,23 @@ export const en: Dict = {
     reducedMotion: 'Reduced motion',
     reducedMotionHint: 'Follows your system setting.',
   },
+  apiKey: {
+    title: 'Your API key',
+    description:
+      'Add a key so answers are generated for real instead of coming from demo content. The key stays in this browser and is used only for your requests.',
+    label: 'API key',
+    replace: 'Replace the key',
+    active: 'Key active',
+    remove: 'Remove the key',
+    invalid: 'Invalid key. It must start with “sk-ant-” (Anthropic) or “sk-” (OpenAI).',
+    saved: 'Key saved on this device.',
+    removed: 'Key removed.',
+    privacy:
+      'The key is stored in this browser only — not in your account and not on the server. It is sent with each request purely to call the provider, then forgotten. You can delete it anytime.',
+    getKey: 'Where do I get a key?',
+    addButton: 'Add API key',
+    demoBanner: 'Demo answers — add your key for real ones.',
+  },
   toast: {
     addedFavorite: 'Added to favorites',
     removedFavorite: 'Removed from favorites',

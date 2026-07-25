@@ -18,6 +18,7 @@ import {
 import { clsx } from 'clsx';
 import type { PhotoAnalysis } from '@/lib/types';
 import { useI18n } from '@/components/providers/I18nProvider';
+import { apiKeyHeader } from '@/lib/apiKey';
 import { useData } from '@/components/providers/DataProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -69,7 +70,7 @@ export default function AnalyzePage() {
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...apiKeyHeader() },
         body: JSON.stringify({ image, locale, userContext: data.profile.aiContext }),
         signal: AbortSignal.timeout(65_000),
       });

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { buildSystemPrompt, isAgentId } from '@/lib/agents';
-import { complete, aiConfigured, type AiMessage } from '@/lib/server/aiProvider';
+import {
+  complete,
+  canCallProvider,
+  userKeyFrom,
+  type AiMessage,
+} from '@/lib/server/aiProvider';
 import { clientIp, rateLimit } from '@/lib/server/rateLimit';
 import { demoChatReply } from '@/lib/demo';
 import type { Locale } from '@/lib/types';
@@ -69,14 +74,15 @@ export async function POST(req: Request) {
 
   const { agent, locale, messages, userContext } = parsed;
 
-  // Demo mode: no key configured, still return a well-structured answer.
-  if (!aiConfigured) {
+  // Demo mode: neither the deployment nor the user has a key.
+  const userKey = userKeyFrom(req);
+  if (!canCallProvider(userKey)) {
     return NextResponse.json({ text: demoChatReply(agent, locale), demo: true });
   }
 
   try {
     const system = buildSystemPrompt(agent, locale, userContext);
-    const result = await complete(system, messages, { maxTokens: 1600 });
+    const result = await complete(system, messages, { maxTokens: 1600, userKey });
     return NextResponse.json({ text: result?.text ?? '', demo: false });
   } catch (error) {
     console.error('[api/chat]', error);

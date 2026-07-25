@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { complete, aiConfigured, extractJson } from '@/lib/server/aiProvider';
+import {
+  complete,
+  canCallProvider,
+  extractJson,
+  userKeyFrom,
+} from '@/lib/server/aiProvider';
 import { clientIp, rateLimit } from '@/lib/server/rateLimit';
 import { macroTargets, sumNutrition, targetCalories, waterMl } from '@/lib/nutrition';
 import type { Locale, MealPlan, PlanDay, PlanMeal, PlannerInput } from '@/lib/types';
@@ -121,14 +126,15 @@ export async function POST(req: Request) {
 
   const calories = targetCalories(input);
 
-  // No key configured → the client builds the plan locally from the recipe library.
-  if (!aiConfigured) return NextResponse.json({ plan: null, demo: true });
+  // No key at all → the client builds the plan locally from the recipe library.
+  const userKey = userKeyFrom(req);
+  if (!canCallProvider(userKey)) return NextResponse.json({ plan: null, demo: true });
 
   try {
     const result = await complete(
       `You are Nutrition Planner AI for Honni AI. You answer with valid JSON only.`,
       [{ role: 'user', content: buildPrompt(input, locale, calories) }],
-      { maxTokens: 3000 },
+      { maxTokens: 3000, userKey },
     );
 
     const parsed = result

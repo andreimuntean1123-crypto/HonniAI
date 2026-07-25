@@ -5,6 +5,7 @@ import {
   Camera,
   Download,
   Globe,
+  KeyRound,
   MessagesSquare,
   Monitor,
   RefreshCw,
@@ -22,6 +23,8 @@ import { useData } from '@/components/providers/DataProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Reveal } from '@/components/ui';
+import { ApiKeyModal } from '@/components/settings/ApiKeyModal';
+import { maskApiKey, readApiKey } from '@/lib/apiKey';
 import { brand } from '@/config/brand';
 
 const LOCALE_LABEL: Record<Locale, string> = {
@@ -48,6 +51,10 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'demo'>('loading');
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [ownKey, setOwnKey] = useState<string | null>(null);
+
+  useEffect(() => setOwnKey(readApiKey()), [keyOpen]);
 
   useEffect(() => {
     fetch('/api/status')
@@ -217,7 +224,7 @@ export default function SettingsPage() {
                 <dd
                   className={clsx(
                     'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs',
-                    apiStatus === 'connected'
+                    apiStatus === 'connected' || ownKey
                       ? 'bg-brand-500/[0.12] text-brand-700 dark:text-brand-300'
                       : 'bg-amber-500/[0.12] text-amber-700 dark:text-amber-300',
                   )}
@@ -225,16 +232,32 @@ export default function SettingsPage() {
                   <span
                     className={clsx(
                       'h-1.5 w-1.5 rounded-full',
-                      apiStatus === 'connected' ? 'bg-brand-500' : 'bg-amber-500',
+                      apiStatus === 'connected' || ownKey ? 'bg-brand-500' : 'bg-amber-500',
                     )}
                   />
                   {apiStatus === 'loading'
                     ? t('common.loading')
-                    : apiStatus === 'connected'
+                    : apiStatus === 'connected' || ownKey
                       ? t('settings.apiConnected')
                       : t('settings.apiDemo')}
                 </dd>
               </div>
+              <div className="flex items-center justify-between gap-4 border-t border-hairline pt-2">
+                <dt className="flex items-center gap-1.5 text-ink-muted">
+                  <KeyRound size={13} />
+                  {t('apiKey.title')}
+                </dt>
+                <dd>
+                  <button onClick={() => setKeyOpen(true)} className="btn-secondary btn-sm">
+                    {ownKey ? (
+                      <span className="font-mono text-[11px]">{maskApiKey(ownKey)}</span>
+                    ) : (
+                      t('apiKey.addButton')
+                    )}
+                  </button>
+                </dd>
+              </div>
+
               <div className="flex items-center justify-between gap-4 border-t border-hairline pt-2">
                 <dt className="flex items-center gap-1.5 text-ink-muted">
                   <RefreshCw size={13} />
@@ -280,6 +303,12 @@ export default function SettingsPage() {
           </section>
         </Reveal>
       </div>
+
+      <ApiKeyModal
+        open={keyOpen}
+        onClose={() => setKeyOpen(false)}
+        onChange={() => setOwnKey(readApiKey())}
+      />
     </div>
   );
 }

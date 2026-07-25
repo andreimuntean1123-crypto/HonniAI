@@ -7,6 +7,7 @@ import {
   ChefHat,
   Globe2,
   ImagePlus,
+  KeyRound,
   Loader2,
   MessagesSquare,
   Mic,
@@ -27,6 +28,8 @@ import { useToast } from '@/components/providers/ToastProvider';
 import { useDictation, useSpeaker } from '@/hooks/useSpeech';
 import { uid } from '@/lib/storage';
 import { Markdown } from '@/components/ui/Markdown';
+import { ApiKeyModal } from '@/components/settings/ApiKeyModal';
+import { apiKeyHeader, readApiKey } from '@/lib/apiKey';
 import { LogoMark } from '@/components/brand/Logo';
 
 export const AGENT_ICON: Record<AgentId, typeof ChefHat> = {
@@ -94,6 +97,12 @@ export function ChatPanel({
   const [image, setImage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
+  /** Whether answers are coming from demo content (no key anywhere). */
+  const [demoAnswers, setDemoAnswers] = useState(false);
+  const [hasOwnKey, setHasOwnKey] = useState(false);
+
+  useEffect(() => setHasOwnKey(Boolean(readApiKey())), [keyOpen]);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -168,7 +177,7 @@ export function ChatPanel({
 
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', ...apiKeyHeader() },
           body: JSON.stringify({
             agent,
             locale,
@@ -184,6 +193,7 @@ export function ChatPanel({
         if (!res.ok) throw new Error('http');
 
         const json = (await res.json()) as { text?: string; demo?: boolean };
+        setDemoAnswers(Boolean(json.demo));
         const reply: ChatMessage = {
           id: uid('msg'),
           role: 'assistant',
@@ -282,6 +292,15 @@ export function ChatPanel({
           <p className="truncate font-display text-sm font-semibold text-ink">{agentName}</p>
           <p className="truncate text-[11px] text-ink-muted">{t(`agents.${agent}Role`)}</p>
         </div>
+
+        <button
+          onClick={() => setKeyOpen(true)}
+          className={clsx('icon-btn', hasOwnKey && 'text-brand-500')}
+          aria-label={t('apiKey.title')}
+          title={hasOwnKey ? t('apiKey.active') : t('apiKey.addButton')}
+        >
+          <KeyRound size={17} />
+        </button>
 
         {showHistory && (
           <button
@@ -398,6 +417,18 @@ export function ChatPanel({
         </div>
       )}
 
+      {/* demo notice — offers the fix instead of only stating the problem */}
+      {demoAnswers && !hasOwnKey && (
+        <button
+          onClick={() => setKeyOpen(true)}
+          className="mx-3 mb-2 flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2.5 text-left text-[11px] leading-relaxed text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-300"
+        >
+          <KeyRound size={14} className="shrink-0" />
+          <span className="flex-1">{t('apiKey.demoBanner')}</span>
+          <span className="shrink-0 font-medium underline">{t('apiKey.addButton')}</span>
+        </button>
+      )}
+
       {/* ------------------------------------------------------------ composer */}
       <div className="border-t border-hairline px-3 py-3 safe-bottom">
         {image && (
@@ -496,6 +527,15 @@ export function ChatPanel({
           </p>
         )}
       </div>
+
+      <ApiKeyModal
+        open={keyOpen}
+        onClose={() => setKeyOpen(false)}
+        onChange={() => {
+          setHasOwnKey(Boolean(readApiKey()));
+          setDemoAnswers(false);
+        }}
+      />
     </div>
   );
 }

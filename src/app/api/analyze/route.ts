@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { complete, aiConfigured, extractJson } from '@/lib/server/aiProvider';
+import {
+  complete,
+  canCallProvider,
+  extractJson,
+  userKeyFrom,
+} from '@/lib/server/aiProvider';
 import { clientIp, rateLimit } from '@/lib/server/rateLimit';
 import { demoAnalysis } from '@/lib/demo';
 import { healthScore } from '@/lib/nutrition';
@@ -121,7 +126,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'too_large', maxMb: MAX_IMAGE_MB }, { status: 413 });
   }
 
-  if (!aiConfigured) {
+  const userKey = userKeyFrom(req);
+  if (!canCallProvider(userKey)) {
     return NextResponse.json({ analysis: demoAnalysis(locale), demo: true });
   }
 
@@ -133,7 +139,7 @@ export async function POST(req: Request) {
     const result = await complete(
       SYSTEM(locale),
       [{ role: 'user', content: prompt, image }],
-      { maxTokens: 1200 },
+      { maxTokens: 1200, userKey },
     );
 
     const parsed = result ? extractJson<Record<string, unknown>>(result.text) : null;

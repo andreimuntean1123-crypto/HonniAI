@@ -15,6 +15,7 @@ import {
 import { clsx } from 'clsx';
 import type { Recipe, RecipeCategory, RecipeFilters, RecipeGroup } from '@/lib/types';
 import { useI18n } from '@/components/providers/I18nProvider';
+import { apiKeyHeader } from '@/lib/apiKey';
 import { useData } from '@/components/providers/DataProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { useChatDock } from '@/components/chat/ChatDock';
@@ -79,7 +80,7 @@ export default function RecipesPage() {
     try {
       const res = await fetch('/api/recipe', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...apiKeyHeader() },
         body: JSON.stringify({
           query: filters.query,
           locale,

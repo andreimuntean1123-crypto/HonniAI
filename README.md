@@ -53,6 +53,27 @@ ANTHROPIC_VISION_MODEL=claude-sonnet-5 # model pentru analiza imaginilor
 În **Setări → Stare API AI** vezi imediat dacă aplicația rulează „Conectat” sau în
 „Mod demonstrativ”.
 
+### Varianta fără configurare: cheia din interfață
+
+Nu e obligatoriu să pui cheia în server. Oricine deschide site-ul poate folosi **cheia lui**:
+
+1. deschizi asistentul (butonul plutitor) → apeși pe **iconița de cheie** din antet
+   (sau **Setări → Cheia ta API**);
+2. lipești cheia și salvezi.
+
+Cheia:
+
+- rămâne **doar în browserul acela** — nu în contul tău, nu în baza de date, nu în
+  documentul care se sincronizează între dispozitive (are propriul loc de stocare);
+- se trimite la fiecare cerere doar ca antet, serverul o folosește pentru acel apel și o
+  uită imediat — nu o scrie nicăieri și nu o afișează în loguri;
+- se poate șterge oricând din aceeași fereastră, iar în interfață apare mascată
+  (`sk-ant-…4f2a`).
+
+Dacă vrei ca site-ul să funcționeze pentru toți vizitatorii fără să-și aducă propria cheie,
+pune `ANTHROPIC_API_KEY` în variabilele de mediu (Vercel → Settings → Environment Variables,
+apoi Redeploy). Cheia din interfață are prioritate față de cea din server.
+
 ### Alt furnizor (opțional)
 
 Dacă preferi un API compatibil OpenAI, lasă `ANTHROPIC_API_KEY` gol și completează:
