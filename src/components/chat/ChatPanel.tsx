@@ -404,7 +404,7 @@ export function ChatPanel({
 
       {/* ---------------------------------------------------------- suggestions */}
       {isEmpty && quickSuggestions.length > 0 && (
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-2">
+        <div className="no-scrollbar scroll-row flex gap-2 overflow-x-auto px-4 pb-2">
           {quickSuggestions.map((s) => (
             <button
               key={s}

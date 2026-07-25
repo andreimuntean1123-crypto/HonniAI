@@ -284,6 +284,31 @@
     scrollbar-width: none;
   }
 
+  /* Horizontally-scrolling rows (chips, tabs, thumbnails): fade the edges
+     instead of hard-clipping the last item mid-content, and leave enough
+     trailing space that the final item always clears the fade. */
+  .scroll-row {
+    scroll-padding-inline: 1rem;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 1.25rem,
+      black calc(100% - 1.25rem),
+      transparent
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 1.25rem,
+      black calc(100% - 1.25rem),
+      transparent
+    );
+  }
+  .scroll-row::after {
+    content: '';
+    flex: 0 0 0.75rem;
+  }
+
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }

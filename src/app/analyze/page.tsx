@@ -397,7 +397,7 @@ export default function AnalyzePage() {
             <Reveal>
               <div className="card p-5">
                 <p className="label">{t('analyze.historyTitle')}</p>
-                <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+                <div className="no-scrollbar scroll-row flex gap-3 overflow-x-auto pb-1">
                   {data.analyses.map((a) => (
                     <div key={a.id} className="group relative shrink-0">
                       <button

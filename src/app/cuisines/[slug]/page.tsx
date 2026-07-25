@@ -106,7 +106,7 @@ export default function CuisinePage() {
 
           <section>
             <h2 className="section-title !text-xl">{t('cuisines.title')}</h2>
-            <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-2">
+            <div className="no-scrollbar scroll-row mt-4 flex gap-2 overflow-x-auto pb-2">
               {CUISINES.filter((c) => c.id !== cuisine.id).map((c) => (
                 <Link
                   key={c.id}

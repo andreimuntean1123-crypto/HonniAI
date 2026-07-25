@@ -275,7 +275,7 @@ export default function RecipesPage() {
 
         {/* recent searches */}
         {!filters.query && data.searches.length > 0 && (
-          <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto">
+          <div className="no-scrollbar scroll-row mt-2 flex gap-1.5 overflow-x-auto">
             {data.searches.slice(0, 6).map((s) => (
               <button
                 key={s.id}
