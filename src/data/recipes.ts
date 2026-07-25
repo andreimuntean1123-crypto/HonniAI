@@ -9,8 +9,31 @@ import type {
 } from '@/lib/types';
 import { FOOD_RECIPES } from './recipesFood';
 import { DRINK_RECIPES } from './recipesDrinks';
+import { FOOD_MAINS_EXTRA } from './recipeBatches/foodMains';
+import { FOOD_DESSERTS_EXTRA } from './recipeBatches/foodDesserts';
+import { FOOD_BREAKFAST_SNACKS_EXTRA } from './recipeBatches/foodBreakfastSnacks';
+import { DRINK_MILKSHAKES_SMOOTHIES_EXTRA } from './recipeBatches/drinkMilkshakesSmoothies';
+import { DRINK_MOCKTAILS_COCKTAILS_EXTRA } from './recipeBatches/drinkMocktailsCocktails';
+import { DRINK_COFFEE_TEA_EXTRA } from './recipeBatches/drinkCoffeeTea';
+import { DRINK_LEMONADES_TRADITIONAL_EXTRA } from './recipeBatches/drinkLemonadesTraditional';
+import { ro } from '@/i18n/ro';
+import { ru } from '@/i18n/ru';
+import { en } from '@/i18n/en';
 
-export const RECIPES: Recipe[] = [...FOOD_RECIPES, ...DRINK_RECIPES];
+/** All three dictionaries, so a search matches its category/diet name in any language. */
+const DICTS = [ro, ru, en];
+
+export const RECIPES: Recipe[] = [
+  ...FOOD_RECIPES,
+  ...DRINK_RECIPES,
+  ...FOOD_MAINS_EXTRA,
+  ...FOOD_DESSERTS_EXTRA,
+  ...FOOD_BREAKFAST_SNACKS_EXTRA,
+  ...DRINK_MILKSHAKES_SMOOTHIES_EXTRA,
+  ...DRINK_MOCKTAILS_COCKTAILS_EXTRA,
+  ...DRINK_COFFEE_TEA_EXTRA,
+  ...DRINK_LEMONADES_TRADITIONAL_EXTRA,
+];
 
 export const FOOD_CATEGORIES: { id: FoodCategory; emoji: string }[] = [
   { id: 'appetizers', emoji: '🥟' },
@@ -59,6 +82,10 @@ function matchesQuery(recipe: Recipe, query: string, locale: Locale): boolean {
     recipe.cuisine,
     ...recipe.categories,
     ...recipe.tags,
+    // Also match the localized category/diet names ("rapide", "быстро", "quick"),
+    // not just the raw English ids stored on the recipe.
+    ...DICTS.flatMap((d) => recipe.categories.map((c) => d.categories[c])),
+    ...DICTS.flatMap((d) => recipe.tags.map((t) => d.diets[t])),
     ...recipe.ingredients.map((i) => i.name[locale]),
   ]
     .map(norm)
