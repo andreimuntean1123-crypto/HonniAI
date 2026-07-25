@@ -35,6 +35,18 @@ export function AuthModal({ open, onClose }: { open: boolean; onClose: () => voi
   /** Whether Google's own button could be rendered (script may be blocked). */
   const [googleButton, setGoogleButton] = useState<'pending' | 'ok' | 'failed'>('pending');
 
+  // The sheet stays mounted between openings, so without this reset a user who
+  // once created an account would find it stuck in "create account" mode, with
+  // the old email prefilled, and be told the account already exists.
+  useEffect(() => {
+    if (!open) return;
+    setMode('signin');
+    setName('');
+    setEmail('');
+    setPassword('');
+    setError(null);
+  }, [open]);
+
   useEffect(() => {
     if (!open || !googleEnabled || !googleSlot.current) return;
     let cancelled = false;
@@ -152,7 +164,9 @@ export function AuthModal({ open, onClose }: { open: boolean; onClose: () => voi
         <span className="h-px flex-1 bg-hairline" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      {/* noValidate: the browser's native bubbles are not localized to the app
+          language, so validation is handled below with translated messages. */}
+      <form onSubmit={handleSubmit} noValidate className="space-y-3">
         {mode === 'signup' && (
           <div>
             <label className="label" htmlFor="auth-name">

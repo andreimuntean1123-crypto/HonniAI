@@ -32,7 +32,13 @@ export function Onboarding() {
   const [minutes, setMinutes] = useState(40);
 
   useEffect(() => {
+    // `ready` is false while the signed-in account's data is still loading, so
+    // the sheet can never open against another account's profile.
     if (!ready || !user) return;
+    if (data.profile.onboarded) {
+      setOpen(false);
+      return;
+    }
     if (!data.profile.onboarded) {
       setAllergies(data.profile.allergies);
       setDisliked(data.profile.disliked);

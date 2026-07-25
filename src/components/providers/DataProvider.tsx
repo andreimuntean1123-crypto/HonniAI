@@ -94,9 +94,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { locale, setLocale } = useI18n();
   const [data, setData] = useState<AppData>(EMPTY);
-  const [ready, setReady] = useState(false);
+  /**
+   * Which account bucket `data` currently holds. Consumers must not act on the
+   * profile until this matches the active bucket: on sign-in the user changes
+   * one render before the data does, and reading across that gap made the
+   * onboarding sheet reappear for accounts that had already completed it.
+   */
+  const [loadedBucket, setLoadedBucket] = useState<string | null>(null);
   const bucket = bucketFor(user?.id);
   const hydrated = useRef(false);
+  const ready = loadedBucket === bucket;
 
   // (Re)load whenever the signed-in account changes.
   useEffect(() => {
@@ -104,7 +111,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const merged: AppData = { ...EMPTY, ...stored, profile: { ...EMPTY_PROFILE, ...stored.profile } };
     setData(merged);
     hydrated.current = true;
-    setReady(true);
+    setLoadedBucket(bucket);
     if (merged.profile.locale && merged.profile.locale !== locale) {
       setLocale(merged.profile.locale);
     }
