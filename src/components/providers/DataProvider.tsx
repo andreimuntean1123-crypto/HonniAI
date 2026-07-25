@@ -46,9 +46,13 @@ const EMPTY: AppData = {
   searches: [],
 };
 
+export type SyncState = 'off' | 'syncing' | 'synced' | 'error';
+
 type DataValue = {
   data: AppData;
   ready: boolean;
+  /** Whether this account's data is being mirrored to the server. */
+  syncState: SyncState;
   /* profile */
   updateProfile: (patch: Partial<UserProfile>) => void;
   /* favorites */
@@ -91,7 +95,7 @@ const DataContext = createContext<DataValue | null>(null);
 const bucketFor = (userId?: string) => `data.${userId ?? 'guest'}`;
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, syncEnabled } = useAuth();
   const { locale, setLocale } = useI18n();
   const [data, setData] = useState<AppData>(EMPTY);
   /**
@@ -105,24 +109,128 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const hydrated = useRef(false);
   const ready = loadedBucket === bucket;
 
-  // (Re)load whenever the signed-in account changes.
+  /** Last known server revision, so we never overwrite a newer device's copy. */
+  const updatedAt = useRef(0);
+  const pushTimer = useRef<number | null>(null);
+  const [syncState, setSyncState] = useState<SyncState>('off');
+
+  // (Re)load whenever the signed-in account changes: local cache first, so the
+  // UI is never blank, then the server copy for accounts that sync.
   useEffect(() => {
+    let cancelled = false;
     const stored = readStore<AppData>(bucket, EMPTY);
-    const merged: AppData = { ...EMPTY, ...stored, profile: { ...EMPTY_PROFILE, ...stored.profile } };
-    setData(merged);
+    const local: AppData = { ...EMPTY, ...stored, profile: { ...EMPTY_PROFILE, ...stored.profile } };
+    const localUpdatedAt = readStore<number>(`${bucket}.updatedAt`, 0);
+
+    updatedAt.current = localUpdatedAt;
+    setData(local);
     hydrated.current = true;
     setLoadedBucket(bucket);
-    if (merged.profile.locale && merged.profile.locale !== locale) {
-      setLocale(merged.profile.locale);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bucket]);
+    if (local.profile.locale && local.profile.locale !== locale) setLocale(local.profile.locale);
 
-  // Persist on every change (after the initial hydration).
+    if (!syncEnabled) {
+      setSyncState('off');
+      return;
+    }
+
+    setSyncState('syncing');
+    void (async () => {
+      try {
+        const res = await fetch('/api/data', { cache: 'no-store' });
+        if (!res.ok) throw new Error('http');
+        const json = (await res.json()) as {
+          synced: boolean;
+          document: { updatedAt: number; data: AppData | null } | null;
+        };
+        if (cancelled) return;
+
+        // The newer copy wins; a fresh device simply adopts the server's.
+        if (json.document?.data && json.document.updatedAt > localUpdatedAt) {
+          const remote = json.document.data;
+          const merged: AppData = {
+            ...EMPTY,
+            ...remote,
+            profile: { ...EMPTY_PROFILE, ...remote.profile },
+          };
+          updatedAt.current = json.document.updatedAt;
+          writeStore(bucket, merged);
+          writeStore(`${bucket}.updatedAt`, json.document.updatedAt);
+          setData(merged);
+          if (merged.profile.locale && merged.profile.locale !== locale) {
+            setLocale(merged.profile.locale);
+          }
+        } else if (localUpdatedAt > 0) {
+          // This device is ahead — publish it.
+          await pushNow(local);
+        }
+        if (!cancelled) setSyncState('synced');
+      } catch {
+        if (!cancelled) setSyncState('error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bucket, syncEnabled]);
+
+  /** Sends the current document to the server, resolving conflicts by revision. */
+  const pushNow = useCallback(
+    async (payload: AppData) => {
+      const stamp = Date.now();
+      try {
+        const res = await fetch('/api/data', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ data: payload, updatedAt: stamp }),
+        });
+        if (!res.ok) throw new Error('http');
+        const json = (await res.json()) as {
+          conflict?: boolean;
+          updatedAt?: number;
+          document?: { updatedAt: number; data: AppData | null } | null;
+        };
+
+        if (json.conflict && json.document?.data) {
+          // Another device saved something newer while we were editing.
+          const remote = json.document.data;
+          const merged: AppData = {
+            ...EMPTY,
+            ...remote,
+            profile: { ...EMPTY_PROFILE, ...remote.profile },
+          };
+          updatedAt.current = json.document.updatedAt;
+          writeStore(bucket, merged);
+          writeStore(`${bucket}.updatedAt`, json.document.updatedAt);
+          setData(merged);
+        } else {
+          updatedAt.current = json.updatedAt ?? stamp;
+          writeStore(`${bucket}.updatedAt`, updatedAt.current);
+        }
+        setSyncState('synced');
+      } catch {
+        setSyncState('error');
+      }
+    },
+    [bucket],
+  );
+
+  // Persist on every change (after the initial hydration), then sync.
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!hydrated.current || loadedBucket !== bucket) return;
     writeStore(bucket, data);
-  }, [bucket, data]);
+
+    if (!syncEnabled) return;
+    // Debounced: typing in the planner should not produce a request per keystroke.
+    if (pushTimer.current) window.clearTimeout(pushTimer.current);
+    setSyncState('syncing');
+    pushTimer.current = window.setTimeout(() => void pushNow(data), 1200);
+
+    return () => {
+      if (pushTimer.current) window.clearTimeout(pushTimer.current);
+    };
+  }, [bucket, data, loadedBucket, syncEnabled, pushNow]);
 
   const patch = useCallback((fn: (prev: AppData) => AppData) => setData(fn), []);
 
@@ -361,12 +469,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const eraseEverything = useCallback(() => {
     clearAllStores();
     setData(EMPTY);
-  }, []);
+    updatedAt.current = 0;
+    if (syncEnabled) {
+      void fetch('/api/data', { method: 'DELETE' }).catch(() => undefined);
+    }
+  }, [syncEnabled]);
 
   const value = useMemo<DataValue>(
     () => ({
       data,
       ready,
+      syncState,
       updateProfile,
       isFavorite,
       toggleFavorite,
@@ -397,6 +510,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [
       data,
       ready,
+      syncState,
       updateProfile,
       isFavorite,
       toggleFavorite,

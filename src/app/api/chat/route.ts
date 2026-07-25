@@ -7,6 +7,9 @@ import type { Locale } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Model calls routinely need more than the 10s a serverless function gets by
+// default; without this the platform kills the request mid-generation.
+export const maxDuration = 60;
 
 const MAX_MESSAGES = 24;
 const MAX_CHARS = 6000;
@@ -77,10 +80,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ text: result?.text ?? '', demo: false });
   } catch (error) {
     console.error('[api/chat]', error);
-    // Fall back to demo content rather than leaving the user with a dead chat.
-    return NextResponse.json(
-      { text: demoChatReply(agent, locale), demo: true, degraded: true },
-      { status: 200 },
-    );
+    // Demo replies are for the unconfigured case only. When a real provider
+    // call fails, say so instead of passing pre-written text off as an answer.
+    return NextResponse.json({ error: 'provider_error' }, { status: 502 });
   }
 }

@@ -316,6 +316,9 @@ export const en: Dict = {
     errorType: 'Unsupported format. Use JPG, PNG or WEBP.',
     errorSize: 'The image is too large. The limit is {size} MB.',
     errorNoImage: 'Add an image first.',
+    errorUnreadable:
+      'The image could not be read. Try a clearer, larger photo.',
+    errorFailed: 'The analysis failed. Please try again in a moment.',
     historyTitle: 'Recent analyses',
     lowConfidence: 'The photo is unclear, so the estimate has low confidence.',
   },
@@ -449,8 +452,10 @@ export const en: Dict = {
   },
   auth: {
     signInTitle: 'Welcome',
+    signUpTitle: 'Create your account',
+    namePlaceholder: 'What should we call you?',
+    passwordHint: 'At least 6 characters.',
     signInSubtitle: 'Sign in to save your preferences and plans.',
-    google: 'Continue with Google',
     email: 'Email',
     password: 'Password',
     name: 'Name',
@@ -466,12 +471,8 @@ export const en: Dict = {
     emailTaken: 'An account with this email already exists.',
     weakPassword: 'The password must be at least 6 characters.',
     invalidEmail: 'Invalid email address.',
-    googleNotConfigured: 'Google Sign-In is not configured. Used the demo account instead.',
-    googleNotConfiguredHint:
-      'Google Sign-In is not active on this domain. The button signs you into the demo account.',
-    googleUnavailable:
-      'The Google button could not load (poor connection or a browser blocker). Try again or use email.',
     guestNotice: 'You are in guest mode — data is stored on this device only.',
+    networkError: 'Could not reach the server. Check your connection and try again.',
   },
   onboarding: {
     title: 'Let’s get to know you',
@@ -532,6 +533,15 @@ export const en: Dict = {
     apiStatus: 'AI API status',
     apiConnected: 'Connected',
     apiDemo: 'Demo mode',
+    syncStatus: 'Cross-device sync',
+    syncOn: 'Active',
+    syncOff: 'This device only',
+    syncing: 'Syncing…',
+    syncError: 'Sync failed',
+    syncOnHint:
+      'Favorites, plans and history follow you on any device where you sign in with this account.',
+    syncOffHint:
+      'The account and its data stay in this browser. Connect a database to enable sync (see README).',
     reducedMotion: 'Reduced motion',
     reducedMotionHint: 'Follows your system setting.',
   },

@@ -97,6 +97,9 @@ export default function PlannerPage() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ input, locale, userContext: data.profile.aiContext }),
+        // Building a week of meals is a long generation; give it room, but never
+        // leave the user watching a skeleton forever.
+        signal: AbortSignal.timeout(95_000),
       });
       const json = (await res.json()) as { plan: MealPlan | null };
 

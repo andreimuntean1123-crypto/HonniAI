@@ -63,35 +63,37 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-### Autentificare Google (opțional)
+### Conturi și sincronizare între dispozitive (opțional)
 
-1. În [Google Cloud Console](https://console.cloud.google.com/apis/credentials) creează un
-   **OAuth 2.0 Client ID** de tip *Web application*.
-2. La *Authorized JavaScript origins* adaugă **fiecare** domeniu de pe care se face login,
-   fără cale și fără slash final:
-   - `http://localhost:3000`
-   - domeniul de producție, ex. `https://honni-ai.vercel.app`
-3. Pune ID-ul în `.env.local` (local) și în **Vercel → Settings → Environment Variables**:
+Autentificarea se face cu **email și parolă** — nu există login prin Google.
+
+Fără nicio configurare, contul și datele lui rămân **în browserul curent**. Ca să ai
+aceleași favorite, planuri, istoric și listă de cumpărături pe telefon și pe calculator,
+conectează o bază de date KV (Redis):
+
+**Pe Vercel** — Storage → Marketplace → *Upstash Redis* → Connect Project. Vercel adaugă
+singur variabilele; după aceea dă **Redeploy**.
+
+**Local sau alt hosting** — pune în `.env.local`:
 
 ```bash
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+KV_REST_API_URL=https://....upstash.io
+KV_REST_API_TOKEN=...
 ```
 
-> Variabilele `NEXT_PUBLIC_*` sunt încorporate la build, deci după ce o adaugi în Vercel
-> trebuie să faci **Redeploy** — altfel modificarea nu are efect.
+Ce se schimbă când există baza de date:
 
-Comportament:
+| | Fără KV | Cu KV |
+| --- | --- | --- |
+| Cont | doar în acest browser | pe server, valabil de pe orice dispozitiv |
+| Parole | hash SHA-256 local | hash scrypt cu sare, pe server |
+| Sesiune | localStorage | cookie httpOnly, 30 de zile, invalidat la deconectare |
+| Favorite, planuri, istoric | per dispozitiv | sincronizate automat |
 
-- **variabilă setată** → se afișează butonul oficial Google, care deschide fereastra de
-  selectare a contului (nu One Tap, care este blocat frecvent de browsere);
-- **script Google blocat** (ad-blocker, fără internet) → apare un buton de rezervă și un
-  mesaj explicit, în locul unui spațiu gol;
-- **variabilă lipsă** → butonul te conectează în contul demonstrativ, cu mesaj clar.
-
-Fiecare deployment preview de pe Vercel are propriul subdomeniu; login-ul Google va
-funcționa doar pe domeniile trecute explicit la pasul 2.
-
----
+Sincronizarea rulează în fundal (scriere amânată ~1 secundă) și rezolvă conflictele după
+ultima modificare: dacă alt dispozitiv a salvat ceva mai nou, versiunea aceea este păstrată
+și adusă înapoi în loc să fie suprascrisă. Starea apare în **Setări → Sincronizare între
+dispozitive**.
 
 ## 3. Modul demonstrativ
 
@@ -106,8 +108,9 @@ demonstrativ real, în limba selectată.
 | Generare rețetă cu AI | întrebarea este preluată de agentul culinar                         |
 | Rețete, filtre, listă | complet funcționale (28 de rețete și 16 bucătării incluse)           |
 
-Dacă apelul către model eșuează, rutele API revin automat la conținutul demonstrativ, ca
-utilizatorul să nu rămână cu un ecran gol.
+Conținutul demonstrativ apare **doar** când nu există cheie API. Dacă o cerere reală
+eșuează, aplicația spune că a eșuat — nu prezintă un răspuns pregătit în avans ca și cum ar
+fi analiza fotografiei tale.
 
 ---
 

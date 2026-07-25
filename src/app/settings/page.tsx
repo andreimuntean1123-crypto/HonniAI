@@ -7,6 +7,7 @@ import {
   Globe,
   MessagesSquare,
   Monitor,
+  RefreshCw,
   Moon,
   Sun,
   Trash2,
@@ -33,9 +34,10 @@ const LOCALE_FLAG: Record<Locale, string> = { ro: '🇷🇴', ru: '🇷🇺', en
 export default function SettingsPage() {
   const { t, locale, setLocale, locales } = useI18n();
   const { mode, setMode } = useTheme();
-  const { signOut } = useAuth();
+  const { signOut, syncEnabled } = useAuth();
   const {
     data,
+    syncState,
     updateProfile,
     clearConversations,
     clearAnalyses,
@@ -233,6 +235,43 @@ export default function SettingsPage() {
                       : t('settings.apiDemo')}
                 </dd>
               </div>
+              <div className="flex items-center justify-between gap-4 border-t border-hairline pt-2">
+                <dt className="flex items-center gap-1.5 text-ink-muted">
+                  <RefreshCw size={13} />
+                  {t('settings.syncStatus')}
+                </dt>
+                <dd
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs',
+                    syncEnabled && syncState !== 'error'
+                      ? 'bg-brand-500/[0.12] text-brand-700 dark:text-brand-300'
+                      : syncState === 'error'
+                        ? 'bg-red-500/10 text-red-600 dark:text-red-300'
+                        : 'bg-ink/[0.06] text-ink-soft dark:bg-white/[0.08]',
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'h-1.5 w-1.5 rounded-full',
+                      syncEnabled && syncState !== 'error'
+                        ? 'bg-brand-500'
+                        : syncState === 'error'
+                          ? 'bg-red-500'
+                          : 'bg-ink-muted',
+                    )}
+                  />
+                  {!syncEnabled
+                    ? t('settings.syncOff')
+                    : syncState === 'syncing'
+                      ? t('settings.syncing')
+                      : syncState === 'error'
+                        ? t('settings.syncError')
+                        : t('settings.syncOn')}
+                </dd>
+              </div>
+              <p className="text-[11px] leading-relaxed text-ink-muted">
+                {syncEnabled ? t('settings.syncOnHint') : t('settings.syncOffHint')}
+              </p>
               <div className="flex items-center justify-between border-t border-hairline pt-2">
                 <dt className="text-ink-muted">{brand.name}</dt>
                 <dd className="text-ink-muted">{brand.tagline[locale]}</dd>

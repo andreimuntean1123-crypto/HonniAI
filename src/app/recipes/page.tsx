@@ -85,6 +85,7 @@ export default function RecipesPage() {
           locale,
           userContext: data.profile.aiContext,
         }),
+        signal: AbortSignal.timeout(65_000),
       });
       const json = (await res.json()) as { recipe: Recipe | null; demo?: boolean };
 

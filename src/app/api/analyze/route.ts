@@ -7,6 +7,9 @@ import type { Locale, PhotoAnalysis } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Model calls routinely need more than the 10s a serverless function gets by
+// default; without this the platform kills the request mid-generation.
+export const maxDuration = 60;
 
 const MAX_IMAGE_MB = Number(process.env.MAX_IMAGE_MB ?? 8);
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
@@ -144,6 +147,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ analysis, demo: false });
   } catch (error) {
     console.error('[api/analyze]', error);
-    return NextResponse.json({ analysis: demoAnalysis(locale), demo: true, degraded: true });
+
+    // A failed call must not be answered with demo content: it describes a
+    // different dish, and the user would take it for an analysis of their photo.
+    const message = error instanceof Error ? error.message : '';
+    const unreadableImage = /could not process image|image/i.test(message) && /400/.test(message);
+
+    return NextResponse.json(
+      { error: unreadableImage ? 'unreadable_image' : 'provider_error' },
+      { status: unreadableImage ? 422 : 502 },
+    );
   }
 }

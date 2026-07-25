@@ -11,6 +11,9 @@ import type {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Model calls routinely need more than the 10s a serverless function gets by
+// default; without this the platform kills the request mid-generation.
+export const maxDuration = 60;
 
 const isLocale = (v: unknown): v is Locale => v === 'ro' || v === 'ru' || v === 'en';
 const LANGUAGE: Record<Locale, string> = { ro: 'Romanian', ru: 'Russian', en: 'English' };

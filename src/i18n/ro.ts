@@ -319,6 +319,9 @@ export const ro = {
     errorType: 'Format neacceptat. Folosește JPG, PNG sau WEBP.',
     errorSize: 'Imaginea este prea mare. Limita este de {size} MB.',
     errorNoImage: 'Adaugă mai întâi o imagine.',
+    errorUnreadable:
+      'Nu am putut citi imaginea. Încearcă o fotografie mai clară și mai mare.',
+    errorFailed: 'Analiza nu a reușit. Încearcă din nou peste câteva momente.',
     historyTitle: 'Analize recente',
     lowConfidence:
       'Imaginea este neclară, așa că estimarea are un nivel scăzut de încredere.',
@@ -454,8 +457,10 @@ export const ro = {
   },
   auth: {
     signInTitle: 'Bine ai venit',
+    signUpTitle: 'Creează-ți contul',
+    namePlaceholder: 'Cum să îți spunem?',
+    passwordHint: 'Minimum 6 caractere.',
     signInSubtitle: 'Autentifică-te pentru a-ți salva preferințele și planurile.',
-    google: 'Continuă cu Google',
     email: 'Email',
     password: 'Parolă',
     name: 'Nume',
@@ -471,13 +476,8 @@ export const ro = {
     emailTaken: 'Există deja un cont cu acest email.',
     weakPassword: 'Parola trebuie să aibă cel puțin 6 caractere.',
     invalidEmail: 'Adresă de email invalidă.',
-    googleNotConfigured:
-      'Google Sign-In nu este configurat. Am folosit contul demonstrativ.',
-    googleNotConfiguredHint:
-      'Google Sign-In nu este activ pe acest domeniu. Butonul te conectează în contul demonstrativ.',
-    googleUnavailable:
-      'Butonul Google nu s-a putut încărca (conexiune slabă sau blocare în browser). Încearcă din nou sau folosește emailul.',
     guestNotice: 'Ești în modul invitat — datele se salvează doar pe acest dispozitiv.',
+    networkError: 'Nu am putut contacta serverul. Verifică internetul și încearcă din nou.',
   },
   onboarding: {
     title: 'Să te cunoaștem',
@@ -538,6 +538,15 @@ export const ro = {
     apiStatus: 'Stare API AI',
     apiConnected: 'Conectat',
     apiDemo: 'Mod demonstrativ',
+    syncStatus: 'Sincronizare între dispozitive',
+    syncOn: 'Activă',
+    syncOff: 'Doar pe acest dispozitiv',
+    syncing: 'Se sincronizează…',
+    syncError: 'Sincronizare eșuată',
+    syncOnHint:
+      'Favoritele, planurile și istoricul te urmează pe orice dispozitiv unde te autentifici cu acest cont.',
+    syncOffHint:
+      'Contul și datele sunt salvate doar în acest browser. Pentru sincronizare, conectează o bază de date (vezi README).',
     reducedMotion: 'Animații reduse',
     reducedMotionHint: 'Respectă setarea sistemului tău.',
   },

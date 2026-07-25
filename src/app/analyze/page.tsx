@@ -71,6 +71,7 @@ export default function AnalyzePage() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ image, locale, userContext: data.profile.aiContext }),
+        signal: AbortSignal.timeout(65_000),
       });
 
       if (res.status === 429) {
@@ -79,6 +80,10 @@ export default function AnalyzePage() {
       }
       if (res.status === 413) {
         toast(t('analyze.errorSize', { size: MAX_MB }), 'error');
+        return;
+      }
+      if (res.status === 422) {
+        toast(t('analyze.errorUnreadable'), 'error');
         return;
       }
       if (!res.ok) throw new Error('http');
@@ -90,7 +95,7 @@ export default function AnalyzePage() {
       setResult(analysis);
       addAnalysis(analysis);
     } catch {
-      toast(t('errors.network'), 'error');
+      toast(t('analyze.errorFailed'), 'error');
     } finally {
       setAnalyzing(false);
     }

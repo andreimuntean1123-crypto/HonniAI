@@ -12,32 +12,31 @@ import type { User } from '@/lib/types';
 import { readStore, removeStore, uid, writeStore } from '@/lib/storage';
 
 /**
- * Authentication.
+ * Authentication — email and password only.
  *
- * Ships with a self-contained local provider so the whole app is usable with
- * zero configuration (demo mode). Google Sign-In is real and activates as soon
- * as NEXT_PUBLIC_GOOGLE_CLIENT_ID is set — the Google Identity Services script
- * is loaded on demand and the returned ID token is decoded client-side.
+ * Two modes, chosen automatically:
  *
- * To move to a hosted backend (Firebase / Supabase), replace the three
- * `signIn*` implementations below; the rest of the app only depends on the
- * `User` shape exposed here.
+ *  - **Server accounts** (when a KV database is configured): registration and
+ *    login go through `/api/auth/*`, the session lives in an httpOnly cookie
+ *    and the account exists independently of the browser. This is what makes
+ *    favorites and history follow the user across devices.
+ *  - **Device accounts** (nothing configured): the same forms work, but the
+ *    account and its data stay in this browser. `syncEnabled` is false, and the
+ *    UI says so instead of implying the data is synced.
+ *
+ * The demo account is always local.
  */
 
 type Credentials = { email: string; password: string; name?: string };
+type Result = { ok: boolean; error?: 'invalid' | 'taken' | 'network' };
 
 type AuthValue = {
   user: User | null;
   ready: boolean;
-  googleEnabled: boolean;
-  signInWithGoogle: () => Promise<{ ok: boolean; fallback?: boolean; error?: string }>;
-  /** Renders Google's official sign-in button into the given element. */
-  mountGoogleButton: (
-    container: HTMLElement,
-    options?: { theme?: 'light' | 'dark'; locale?: string },
-  ) => Promise<boolean>;
-  signInWithPassword: (c: Credentials) => Promise<{ ok: boolean; error?: string }>;
-  signUpWithPassword: (c: Credentials) => Promise<{ ok: boolean; error?: string }>;
+  /** True when accounts live on the server, so data can sync between devices. */
+  syncEnabled: boolean;
+  signInWithPassword: (c: Credentials) => Promise<Result>;
+  signUpWithPassword: (c: Credentials) => Promise<Result>;
   signInDemo: () => void;
   signOut: () => void;
   updateUser: (patch: Partial<User>) => void;
@@ -46,10 +45,9 @@ type AuthValue = {
 const AuthContext = createContext<AuthValue | null>(null);
 
 type StoredAccount = { user: User; passwordHash: string };
+type ServerUser = { id: string; name: string; email: string; picture?: string; createdAt: number };
 
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-
-/** SHA-256 hash — local accounts never store a plaintext password. */
+/** SHA-256 — device accounts never store a plaintext password. */
 async function hashPassword(password: string): Promise<string> {
   const data = new TextEncoder().encode(`honni:${password}`);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -58,64 +56,60 @@ async function hashPassword(password: string): Promise<string> {
     .join('');
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const part = token.split('.')[1];
-    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(decodeURIComponent(escape(json)));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Loads Google Identity Services.
- *
- * The timeout matters: ad blockers, offline devices and networks that cannot
- * reach accounts.google.com leave the request hanging forever, and without a
- * deadline the sign-in area would stay empty with no explanation.
- */
-function loadGoogleScript(timeoutMs = 8000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const ready = () =>
-      Boolean((window as unknown as { google?: { accounts?: { id?: unknown } } }).google?.accounts?.id);
-    if (ready()) return resolve();
-
-    const deadline = window.setTimeout(() => reject(new Error('timeout')), timeoutMs);
-    const done = (ok: boolean) => {
-      window.clearTimeout(deadline);
-      // `onload` can fire a tick before `window.google` is populated.
-      if (ok && !ready()) {
-        window.setTimeout(() => (ready() ? resolve() : reject(new Error('unavailable'))), 300);
-        return;
-      }
-      ok ? resolve() : reject(new Error('script'));
-    };
-
-    const existing = document.getElementById('google-identity') as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener('load', () => done(true), { once: true });
-      existing.addEventListener('error', () => done(false), { once: true });
-      return;
-    }
-
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.id = 'google-identity';
-    s.async = true;
-    s.onload = () => done(true);
-    s.onerror = () => done(false);
-    document.head.appendChild(s);
-  });
-}
+const fromServer = (u: ServerUser): User => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  picture: u.picture,
+  provider: 'password',
+  createdAt: u.createdAt,
+  synced: true,
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const [serverAuth, setServerAuth] = useState(false);
 
+  // Ask the server whether accounts are hosted, and restore the session if so.
   useEffect(() => {
-    setUser(readStore<User | null>('user', null));
-    setReady(true);
+    let cancelled = false;
+
+    const restore = async () => {
+      const local = readStore<User | null>('user', null);
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        const json = (await res.json()) as { serverAuth: boolean; user: ServerUser | null };
+        if (cancelled) return;
+
+        setServerAuth(json.serverAuth);
+        if (json.serverAuth) {
+          // A local demo session stays valid; anything else follows the cookie.
+          if (json.user) {
+            const next = fromServer(json.user);
+            setUser(next);
+            writeStore('user', next);
+          } else if (local?.provider === 'demo') {
+            setUser(local);
+          } else {
+            setUser(null);
+            removeStore('user');
+          }
+        } else {
+          setUser(local);
+        }
+      } catch {
+        // Offline: fall back to whatever this device already had.
+        if (!cancelled) setUser(local);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    };
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const persist = useCallback((next: User | null) => {
@@ -134,107 +128,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [persist]);
 
-  /** Turns a Google ID token into a signed-in user. */
-  const acceptGoogleCredential = useCallback(
-    (credential: string) => {
-      const payload = decodeJwtPayload(credential);
-      if (!payload?.email) return false;
-      persist({
-        id: String(payload.sub ?? uid('google')),
-        name: String(payload.name ?? payload.email),
-        email: String(payload.email),
-        picture: payload.picture ? String(payload.picture) : undefined,
-        provider: 'google',
-        createdAt: Date.now(),
-      });
-      return true;
+  /* ------------------------------------------------------------ server mode */
+
+  const serverRequest = useCallback(
+    async (path: string, credentials: Credentials): Promise<Result> => {
+      try {
+        const res = await fetch(path, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(credentials),
+        });
+
+        if (res.status === 409) return { ok: false, error: 'taken' };
+        if (!res.ok) return { ok: false, error: 'invalid' };
+
+        const json = (await res.json()) as { user: ServerUser };
+        persist(fromServer(json.user));
+        return { ok: true };
+      } catch {
+        return { ok: false, error: 'network' };
+      }
     },
     [persist],
   );
 
-  /**
-   * Renders Google's own sign-in button into `container`.
-   *
-   * This is the reliable path: One Tap (`prompt()`) is silently suppressed by
-   * browsers that block third-party cookies, or after the user dismisses it
-   * once, which makes it useless as the only entry point. The rendered button
-   * always opens the account chooser in a popup.
-   */
-  const mountGoogleButton = useCallback(
-    async (
-      container: HTMLElement,
-      options: { theme?: 'light' | 'dark'; locale?: string } = {},
-    ): Promise<boolean> => {
-      if (!GOOGLE_CLIENT_ID) return false;
-      try {
-        await loadGoogleScript();
-        const google = (window as unknown as { google?: any }).google;
-        if (!google?.accounts?.id) return false;
+  /* ------------------------------------------------------------ device mode */
 
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          ux_mode: 'popup',
-          auto_select: false,
-          callback: (res: { credential?: string }) => {
-            if (res.credential) acceptGoogleCredential(res.credential);
-          },
-        });
-
-        container.innerHTML = '';
-        google.accounts.id.renderButton(container, {
-          type: 'standard',
-          theme: options.theme === 'dark' ? 'filled_black' : 'outline',
-          size: 'large',
-          shape: 'pill',
-          text: 'continue_with',
-          logo_alignment: 'center',
-          width: Math.min(360, Math.max(220, container.clientWidth || 320)),
-          locale: options.locale ?? 'ro',
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [acceptGoogleCredential],
-  );
-
-  const signInWithGoogle = useCallback(async () => {
-    // Without a client ID configured there is nothing to sign in to, so the
-    // demo account keeps the app usable — the caller tells the user.
-    if (!GOOGLE_CLIENT_ID) {
-      signInDemo();
-      return { ok: true, fallback: true };
-    }
-    try {
-      await loadGoogleScript();
-      const google = (window as unknown as { google?: any }).google;
-      if (!google?.accounts?.id) throw new Error('gsi');
-
-      const credential = await new Promise<string>((resolve, reject) => {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          ux_mode: 'popup',
-          auto_select: false,
-          callback: (res: { credential?: string }) =>
-            res.credential ? resolve(res.credential) : reject(new Error('no-credential')),
-        });
-        google.accounts.id.prompt((notification: any) => {
-          if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-            reject(new Error('dismissed'));
-          }
-        });
-      });
-
-      if (!acceptGoogleCredential(credential)) throw new Error('payload');
-      return { ok: true };
-    } catch {
-      return { ok: false, error: 'google' };
-    }
-  }, [acceptGoogleCredential, signInDemo]);
-
-  const signUpWithPassword = useCallback(
-    async ({ email, password, name }: Credentials) => {
+  const localSignUp = useCallback(
+    async ({ email, password, name }: Credentials): Promise<Result> => {
       const accounts = readStore<StoredAccount[]>('accounts', []);
       if (accounts.some((a) => a.user.email.toLowerCase() === email.toLowerCase())) {
         return { ok: false, error: 'taken' };
@@ -256,8 +177,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
-  const signInWithPassword = useCallback(
-    async ({ email, password }: Credentials) => {
+  const localSignIn = useCallback(
+    async ({ email, password }: Credentials): Promise<Result> => {
       const accounts = readStore<StoredAccount[]>('accounts', []);
       const hash = await hashPassword(password);
       const found = accounts.find(
@@ -270,7 +191,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
-  const signOut = useCallback(() => persist(null), [persist]);
+  /* ------------------------------------------------------------------ api   */
+
+  const signUpWithPassword = useCallback(
+    (c: Credentials) =>
+      serverAuth ? serverRequest('/api/auth/register', c) : localSignUp(c),
+    [serverAuth, serverRequest, localSignUp],
+  );
+
+  const signInWithPassword = useCallback(
+    (c: Credentials) => (serverAuth ? serverRequest('/api/auth/login', c) : localSignIn(c)),
+    [serverAuth, serverRequest, localSignIn],
+  );
+
+  const signOut = useCallback(() => {
+    persist(null);
+    if (serverAuth) {
+      void fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    }
+  }, [persist, serverAuth]);
 
   const updateUser = useCallback(
     (patch: Partial<User>) => {
@@ -278,26 +217,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!prev) return prev;
         const next = { ...prev, ...patch };
         writeStore('user', next);
-        // keep the local account list in sync for password accounts
-        const accounts = readStore<StoredAccount[]>('accounts', []);
-        const idx = accounts.findIndex((a) => a.user.id === next.id);
-        if (idx >= 0) {
-          accounts[idx] = { ...accounts[idx], user: next };
-          writeStore('accounts', accounts);
+
+        if (serverAuth && next.synced) {
+          void fetch('/api/auth/me', {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: next.name, picture: next.picture }),
+          }).catch(() => undefined);
+        } else {
+          // Device accounts keep their copy in the local account list.
+          const accounts = readStore<StoredAccount[]>('accounts', []);
+          const idx = accounts.findIndex((a) => a.user.id === next.id);
+          if (idx >= 0) {
+            accounts[idx] = { ...accounts[idx], user: next };
+            writeStore('accounts', accounts);
+          }
         }
         return next;
       });
     },
-    [],
+    [serverAuth],
   );
 
   const value = useMemo<AuthValue>(
     () => ({
       user,
       ready,
-      googleEnabled: Boolean(GOOGLE_CLIENT_ID),
-      signInWithGoogle,
-      mountGoogleButton,
+      syncEnabled: serverAuth && Boolean(user?.synced),
       signInWithPassword,
       signUpWithPassword,
       signInDemo,
@@ -307,8 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [
       user,
       ready,
-      signInWithGoogle,
-      mountGoogleButton,
+      serverAuth,
       signInWithPassword,
       signUpWithPassword,
       signInDemo,

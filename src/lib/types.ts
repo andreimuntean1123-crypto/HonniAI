@@ -295,7 +295,7 @@ export type Conversation = {
 /* User & profile                                                              */
 /* -------------------------------------------------------------------------- */
 
-export type AuthProvider = 'google' | 'password' | 'demo';
+export type AuthProvider = 'password' | 'demo';
 
 export type User = {
   id: string;
@@ -304,6 +304,8 @@ export type User = {
   picture?: string;
   provider: AuthProvider;
   createdAt: number;
+  /** True when the account lives on the server and its data syncs across devices. */
+  synced?: boolean;
 };
 
 export type UserProfile = {
