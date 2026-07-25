@@ -34,6 +34,9 @@ const LOCALE_LABEL: Record<Locale, string> = {
 };
 const LOCALE_FLAG: Record<Locale, string> = { ro: '🇷🇴', ru: '🇷🇺', en: '🇬🇧' };
 
+/** Short commit of the running build, so a stale deployment is recognisable. */
+const buildId = (process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || '').slice(0, 7);
+
 export default function SettingsPage() {
   const { t, locale, setLocale, locales } = useI18n();
   const { mode, setMode } = useTheme();
@@ -214,7 +217,12 @@ export default function SettingsPage() {
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex items-center justify-between border-t border-hairline pt-2">
                 <dt className="text-ink-muted">{t('settings.version')}</dt>
-                <dd className="text-ink">1.0.0</dd>
+                {/* The commit is shown so it is obvious which build is live —
+                    Vercel exposes it automatically on every deployment. */}
+                <dd className="text-ink">
+                  1.0.0
+                  {buildId && <span className="ml-2 font-mono text-xs text-ink-muted">{buildId}</span>}
+                </dd>
               </div>
               <div className="flex items-center justify-between border-t border-hairline pt-2">
                 <dt className="flex items-center gap-1.5 text-ink-muted">
