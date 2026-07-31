@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fetch:photos": "node scripts/fetch-recipe-photos.mjs"
   },
   "dependencies": {
     "clsx": "2.1.1",

@@ -52,8 +52,21 @@ export default function HomePage() {
     <>
       {/* ------------------------------------------------------------------ hero */}
       <section className="relative overflow-hidden">
-        <div className="container-page pb-10 pt-6 sm:pb-16 sm:pt-10">
-          <div className="relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem]">
+        <div className="container-page relative pb-10 pt-6 sm:pb-16 sm:pt-10">
+          {/* Halo: aceleași culori ca blocul, dar mult mărite și puternic
+              neclare, desenate ÎN SPATELE lui. Culoarea „se scurge" în afara
+              colțurilor, așa că trecerea de la bloc la pagină nu mai este o
+              linie tăiată brusc. Pur decorativ. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-2 inset-y-8 -z-10 blur-[64px] opacity-60 dark:opacity-45"
+            style={{
+              background:
+                'radial-gradient(60% 55% at 78% 22%, rgba(34,224,74,0.42), transparent 68%), radial-gradient(55% 50% at 14% 82%, rgba(255,190,80,0.30), transparent 66%), radial-gradient(70% 60% at 50% 50%, rgba(13,27,20,0.55), transparent 70%)',
+            }}
+          />
+
+          <div className="relative overflow-hidden rounded-[2rem] shadow-[0_30px_80px_-30px_rgba(6,20,12,0.55)] ring-1 ring-black/5 sm:rounded-[2.5rem] dark:ring-white/5">
             {/* layered culinary backdrop */}
             <div className="absolute inset-0">
               <div

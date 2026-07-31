@@ -10,6 +10,7 @@ import {
   Globe,
   Heart,
   Home,
+  LogIn,
   LogOut,
   Menu,
   Monitor,
@@ -130,8 +131,10 @@ export function Header() {
                 aria-label={t('language.change')}
               >
                 <Globe size={16} />
-                <span className="text-xs font-medium uppercase">{locale}</span>
-                <ChevronDown size={12} className="opacity-60" />
+                {/* Sub 400px antetul nu are loc și pentru codul limbii:
+                    rămâne doar globul, meniul se deschide la fel. */}
+                <span className="text-xs font-medium uppercase max-[400px]:hidden">{locale}</span>
+                <ChevronDown size={12} className="opacity-60 max-[400px]:hidden" />
               </button>
               <Popover open={langOpen} onClose={() => setLangOpen(false)}>
                 {locales.map((l) => (
@@ -238,8 +241,15 @@ export function Header() {
                 </Popover>
               </div>
             ) : (
-              <button onClick={() => setAuthOpen(true)} className="btn-primary btn-sm ml-1">
-                {t('common.signIn')}
+              <button
+                onClick={() => setAuthOpen(true)}
+                className="btn-primary btn-sm ml-1 max-[400px]:aspect-square max-[400px]:px-0"
+                aria-label={t('common.signIn')}
+              >
+                {/* Pe ecrane foarte înguste rămâne doar iconița — textul
+                    „Autentificare" scotea antetul în afara ecranului. */}
+                <LogIn size={16} className="hidden max-[400px]:block" aria-hidden />
+                <span className="max-[400px]:hidden">{t('common.signIn')}</span>
               </button>
             )}
 

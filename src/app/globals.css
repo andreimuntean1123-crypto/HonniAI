@@ -309,6 +309,27 @@
     flex: 0 0 0.75rem;
   }
 
+  /* Rândul care încape complet nu are de ce să-și estompeze marginile —
+     masca ar tăia degeaba primul și ultimul element. Atributul este pus
+     de componenta ScrollRows, care măsoară rândul la montare și la resize. */
+  .scroll-row[data-overflowing='false'] {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
+  /* Rândul poate primi focalizare când are conținut ascuns; inelul trebuie
+     să se vadă, altfel navigarea cu tastatura devine invizibilă. */
+  .scroll-row:focus-visible {
+    outline: 2px solid rgb(var(--brand-500) / 0.9);
+    outline-offset: 3px;
+    border-radius: 0.75rem;
+  }
+
+  /* Derularea cu săgețile arată mai bine dacă elementele se aliniază. */
+  .scroll-row > * {
+    scroll-snap-align: start;
+  }
+
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }

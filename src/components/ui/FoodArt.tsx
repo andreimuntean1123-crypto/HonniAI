@@ -1,14 +1,24 @@
 'use client';
 
+import { useState } from 'react';
 import { clsx } from 'clsx';
 
 /**
- * Generated artwork for recipes and cuisines.
+ * Imaginea unei rețete sau a unei bucătării.
  *
- * The demo library ships without photography, so instead of broken image
- * placeholders every dish gets a deterministic gradient derived from its name,
- * with the dish emoji as the focal point. If a recipe carries a real `image`
- * URL, that is rendered instead.
+ * Ordinea în care încearcă să afișeze ceva:
+ *
+ *   1. `image` — o adresă explicită, dacă rețeta are una;
+ *   2. `/recipes/<slug>.webp` — fotografia locală, dacă a fost descărcată
+ *      cu `npm run fetch:photos` (vezi `scripts/fetch-recipe-photos.mjs`);
+ *   3. desenul generat — un degrade calculat din numele preparatului, cu
+ *      emoji-ul în mijloc.
+ *
+ * Pasul 2 înseamnă că, după ce rulezi scriptul o singură dată, toate
+ * rețetele capătă fotografii reale fără nicio modificare de cod: fișierele
+ * apar în `public/recipes/`, iar componenta le găsește singură. Dacă o
+ * fotografie lipsește, `onError` coboară automat la desenul generat, deci
+ * nu apare niciodată o imagine ruptă.
  */
 
 function hash(seed: string): number {
@@ -40,6 +50,13 @@ export function FoodArt({
   gradient,
   rounded = 'rounded-3xl',
 }: FoodArtProps) {
+  // Fotografia locală se încearcă doar dacă nu a fost dată una explicită.
+  // `failed` urcă un nivel de fiecare dată când o sursă nu se încarcă.
+  const [failed, setFailed] = useState(false);
+
+  const src = image ?? (seed ? `/recipes/${seed}.webp` : undefined);
+  const showPhoto = Boolean(src) && !failed;
+
   const h = hash(seed);
   // Appetizing food palette only: warm ambers/reds through olive to fresh green.
   // Random hues across the full wheel produce magenta/blue cards that read as
@@ -55,12 +72,19 @@ export function FoodArt({
   return (
     <div
       className={clsx('relative overflow-hidden', rounded, className)}
-      style={image ? undefined : { background }}
+      style={showPhoto ? undefined : { background }}
       aria-hidden
     >
-      {image ? (
+      {showPhoto ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       ) : (
         <>
           {/* soft light blooms keep the flat gradient from looking cheap */}
