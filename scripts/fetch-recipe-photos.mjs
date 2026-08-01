@@ -118,7 +118,44 @@ async function toWebp(buffer, dest) {
   return 'webp';
 }
 
-/* ---------- 4. Programul propriu-zis ---------- */
+/* ---------- 4. Manifestul citit de aplicație ---------- */
+
+/**
+ * Scrie lista rețetelor care chiar au fotografie. Fără ea, componenta
+ * FoodArt ar cere un fișier pentru fiecare rețetă și ar umple consola cu
+ * 404-uri pentru cele care lipsesc.
+ */
+async function writeManifest() {
+  const files = await fs.readdir(OUT_DIR).catch(() => []);
+  const slugs = files
+    .filter((f) => f.endsWith('.webp') || f.endsWith('.jpg'))
+    .map((f) => f.replace(/\.(webp|jpg)$/, ''))
+    .sort();
+
+  const body = `/**
+ * Rețetele care au o fotografie descărcată în \`public/recipes/\`.
+ *
+ * Fișier generat de \`npm run fetch:photos\` — nu-l edita de mână.
+ *
+ * De ce o listă și nu pur și simplu \`<img src="/recipes/slug.webp">\` cu
+ * revenire la eroare: fără ea, browserul ar cere zeci de fișiere inexistente
+ * la fiecare încărcare a paginii și ar umple consola cu 404-uri.
+ */
+export const RECIPE_PHOTOS: ReadonlySet<string> = new Set([
+${slugs.map((s) => `  '${s}',`).join('\n') || '  // nicio fotografie descărcată încă'}
+]);
+
+/** Adresa fotografiei locale, dacă există. */
+export function recipePhoto(slug: string): string | undefined {
+  return RECIPE_PHOTOS.has(slug) ? \`/recipes/\${slug}.webp\` : undefined;
+}
+`;
+
+  await fs.writeFile(path.join(ROOT, 'src', 'data', 'recipePhotos.ts'), body);
+  console.log(`\nManifest actualizat: ${slugs.length} rețete cu fotografie.`);
+}
+
+/* ---------- 5. Programul propriu-zis ---------- */
 
 async function main() {
   await fs.mkdir(OUT_DIR, { recursive: true });
@@ -185,6 +222,8 @@ async function main() {
       : header + credits.join('\n') + '\n';
     await fs.writeFile(CREDITS, body);
   }
+
+  await writeManifest();
 
   console.log(
     `\nGata — ${downloaded} descărcate, ${skipped} sărite (existau deja), ${missed} fără potrivire.`,

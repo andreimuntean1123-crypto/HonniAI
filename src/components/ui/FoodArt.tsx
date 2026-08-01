@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { clsx } from 'clsx';
+import { recipePhoto } from '@/data/recipePhotos';
 
 /**
  * Imaginea unei rețete sau a unei bucătării.
@@ -9,16 +10,16 @@ import { clsx } from 'clsx';
  * Ordinea în care încearcă să afișeze ceva:
  *
  *   1. `image` — o adresă explicită, dacă rețeta are una;
- *   2. `/recipes/<slug>.webp` — fotografia locală, dacă a fost descărcată
- *      cu `npm run fetch:photos` (vezi `scripts/fetch-recipe-photos.mjs`);
+ *   2. `/recipes/<slug>.webp` — fotografia locală, dar numai dacă apare în
+ *      manifestul din `src/data/recipePhotos.ts`, scris de
+ *      `npm run fetch:photos`;
  *   3. desenul generat — un degrade calculat din numele preparatului, cu
  *      emoji-ul în mijloc.
  *
- * Pasul 2 înseamnă că, după ce rulezi scriptul o singură dată, toate
- * rețetele capătă fotografii reale fără nicio modificare de cod: fișierele
- * apar în `public/recipes/`, iar componenta le găsește singură. Dacă o
- * fotografie lipsește, `onError` coboară automat la desenul generat, deci
- * nu apare niciodată o imagine ruptă.
+ * Pasul 2 înseamnă că, după ce rulezi scriptul o singură dată, rețetele
+ * capătă fotografii reale fără nicio modificare de cod. Manifestul există
+ * ca să nu se ceară fișiere inexistente: fără el, o pagină cu rețete ar
+ * genera zeci de 404-uri la fiecare încărcare.
  */
 
 function hash(seed: string): number {
@@ -50,11 +51,12 @@ export function FoodArt({
   gradient,
   rounded = 'rounded-3xl',
 }: FoodArtProps) {
-  // Fotografia locală se încearcă doar dacă nu a fost dată una explicită.
-  // `failed` urcă un nivel de fiecare dată când o sursă nu se încarcă.
+  // Fotografia locală se cere doar dacă manifestul spune că există — altfel
+  // browserul ar arunca un 404 pentru fiecare rețetă la fiecare încărcare.
+  // `failed` rămâne ca plasă de siguranță, dacă fișierul e șters manual.
   const [failed, setFailed] = useState(false);
 
-  const src = image ?? (seed ? `/recipes/${seed}.webp` : undefined);
+  const src = image ?? recipePhoto(seed);
   const showPhoto = Boolean(src) && !failed;
 
   const h = hash(seed);
